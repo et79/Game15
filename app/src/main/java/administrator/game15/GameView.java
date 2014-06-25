@@ -1,7 +1,7 @@
 package administrator.game15;
 
 /**
- * Created by administrator on 2014/06/25.
+ * ゲームのメインコンテンツビューです
  */
 
 import android.view.View;
