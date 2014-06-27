@@ -5,6 +5,7 @@ package administrator.game15;
  */
 
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.content.Context;
@@ -17,92 +18,131 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class GameView extends SurfaceView {
+
+    // メンバー宣言
+
+    // paint
     private Paint paint = new Paint();
 
-    private Point gridOrg = new Point(50,50);   // 枠の原点
-    private int gridWidth = 680;                // 枠の幅
-    private Rect gridRect = new Rect(
+    // 座標系
+    private Point   gridOrg     = new Point(50,180);  // 外枠の原点
+    private int     gridWidth   = 680;                // 外枠の幅
+    private RectF   gridRect    = new RectF(          // 外枠
             gridOrg.x,
             gridOrg.y,
             gridOrg.x + gridWidth,
             gridOrg.y + gridWidth );
-    private int emptyPosIdx = -1;
 
+    private int     titleSize   = 100;                 // タイトルのサイズ
+    private Point   titlePos    = new Point(            // タイトルの位置
+            gridOrg.x,
+            gridOrg.y - 50);
+
+    private int     emptyPosIdx = -1;               // 空白セルの位置
+
+    // コマ保持アレー
     private ArrayList<Piece> pieces = new ArrayList<Piece>(16);
 
+    // 最初の描画フラグ
+    private boolean isInit      = true;
+
+    // コンストラクタ
     public GameView(Context context){
         super(context);
-        setBackgroundColor(Color.WHITE);
+        setBackgroundColor(Color.parseColor("#d0d0d0"));
 
+        // コマを生成
         for( int i = 0; i < 16; i++ )
         {
-            Piece piece = new Piece(paint, gridOrg, gridWidth, i);
+            Piece piece = new Piece( paint, gridOrg, gridWidth, i );
             pieces.add(i, piece);
         }
+
+        // 最初の空白は、最後のセル
         emptyPosIdx = 15;
     }
 
+    // コマをシャッフル
     private void shufflePieces(){
-        ArrayList<Integer> idxArr = new ArrayList<Integer>(16);
-        for( int i = 0; i < 16; i++ )
-            idxArr.add(i, i);
+        // コマアレーをシャッフル
+        Collections.shuffle(pieces);
 
-        Collections.shuffle(idxArr);
-
+        // シャッフルしたアレーのIdxを、コマの位置にセット→位置のシャッフル完了
         for( int i = 0; i < 16; i++ ) {
-            pieces.get(i).setPosIdx(idxArr.get(i));
+            pieces.get(i).setPosIdx(i);
             if( pieces.get(i).numIdx == 15 )
-                emptyPosIdx = idxArr.get(i);
+                emptyPosIdx = i;
         }
-
-        Collections.sort(pieces, new PieceComparator());
     }
 
+    // 座標がどの位置に該当するか算出
+    private int getPosIdx(Point point){
+
+        int oneWidth = gridWidth/4;
+
+        // 座標を１セルの幅で割った時の商が、x,y 座標のセルの位置に該当
+        int xPos = ( point.x - gridOrg.x ) / oneWidth;
+        int yPos = ( point.y - gridOrg.y ) / oneWidth;
+
+        return xPos + yPos * 4;
+    }
+
+    // コマを動かせるか、チェック
+    // 該当位置の上下左右に、空白セルがあれば、true
+    private boolean isPieceMoveAble(int posIdx) {
+        // 上下をチェック
+        if( posIdx - 4 == emptyPosIdx ||
+            posIdx + 4 == emptyPosIdx )
+            return true;
+
+        // 右をチェック（コマが右端にいる場合は除外）
+        if( posIdx % 4 != 3 && posIdx + 1 == emptyPosIdx  )
+            return true;
+
+        // 左をチェック（コマが左端にいる場合は除外）
+        if( posIdx % 4 != 0 && posIdx - 1 == emptyPosIdx )
+            return true;
+
+        return false;
+    }
+
+    // 画面タッチイベント
     @Override
     public boolean onTouchEvent(MotionEvent event){
         int action = event.getAction();
         if(( action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP)
         {
-            if( gridRect.contains((int)event.getX(), (int)event.getY()) )
+            // 枠内を触った場合
+            if( gridRect.contains(event.getX(), event.getY()) )
             {
-                int xPos = ( (int)event.getX() - gridOrg.x ) / ( gridWidth / 4 );
-                int yPos = ( (int)event.getY() - gridOrg.y ) / ( gridWidth / 4 );
+                // 座標から位置Idx取得
+                int clickPosIdx = getPosIdx(new Point((int)event.getX(), (int)event.getY()));
 
-                int clickPosIdx = xPos + yPos * 4;
-
-                boolean fMoveOk = false;
-                if( clickPosIdx - 4 == emptyPosIdx || clickPosIdx + 4 == emptyPosIdx )
-                    fMoveOk = true;
-
-                if( !fMoveOk && clickPosIdx % 4 != 0 ) {
-                    // 左隣をチェック
-                    if( clickPosIdx - 1 == emptyPosIdx )
-                        fMoveOk = true;
-                }
-
-                if( !fMoveOk && clickPosIdx % 4 != 3 ) {
-                    // 右隣をチェック
-                    if( clickPosIdx + 1 == emptyPosIdx )
-                        fMoveOk = true;
-                }
-
-                if( fMoveOk )
+                // コマが動かせる場合
+                if( isPieceMoveAble(clickPosIdx) )
                 {
-                    Piece movePiece = pieces.get(clickPosIdx);
-                    movePiece.setPosIdx(emptyPosIdx);
+                    // 動かす対象のコマを、空白セルの場所に移動
+                    pieces.get(clickPosIdx).setPosIdx(emptyPosIdx);
 
-                    Piece emptyPiece = pieces.get(emptyPosIdx);
-                    emptyPiece.setPosIdx(clickPosIdx);
+                    // 空白セルを、動かしたコマの位置に移動
+                    pieces.get(emptyPosIdx).setPosIdx(clickPosIdx);
+
+                    // 空白セルの位置Idxを更新
                     emptyPosIdx = clickPosIdx;
 
+                    // 位置Idxとアレーの並びを合わせる
                     Collections.sort(pieces, new PieceComparator());
+
+                    invalidate();   // 再描画
                 }
             }
+            // 枠外をタッチ
             else
             {
+                // 今はシャッフル実行
                 shufflePieces();
+                invalidate();   // 再描画
             }
-            invalidate();
         }
         return true;
     }
@@ -110,54 +150,40 @@ public class GameView extends SurfaceView {
     @Override
     public void onDraw(Canvas canvas){
 
-        // グリッド表示
+        // ペイントの基本設定
         paint.setAntiAlias(true);           // 線が滑らかになる
-        paint.setStyle(Paint.Style.STROKE); // 塗りつぶしなし
-        paint.setStrokeWidth(4);            // 線幅
+        paint.setStrokeWidth(0);            // 線幅なし
+        paint.setStyle(Paint.Style.FILL);   // 塗りつぶしあり
 
         // 外枠
-        canvas.drawRect( gridRect, paint);
-
-//        // 格子
-//        int oneWidth = gridWidth/4;
-//        for( int i = 0; i < 4; i++ )
-//        {
-//            // 横
-//            canvas.drawLine(
-//                    gridOrg.x,
-//                    gridOrg.y + oneWidth * i,
-//                    gridOrg.x + gridWidth,
-//                    gridOrg.y + oneWidth * i,
-//                    paint);
-//
-//            // 縦
-//            canvas.drawLine(
-//                    gridOrg.x + oneWidth * i,
-//                    gridOrg.y,
-//                    gridOrg.x + oneWidth * i,
-//                    gridOrg.y + gridWidth,
-//                    paint);
-//        }
+        paint.setColor(Color.parseColor("#b7b7b7"));
+        canvas.drawRoundRect( gridRect, 10, 10, paint);
 
         // コマ描画
-        boolean fOk = true;
+        boolean fNumAllOk = true; // 数字の並び順があっているか？
         for( int i = 0; i < pieces.size(); i++ )
         {
-            Piece piece = pieces.get(i);
-            if( piece.numIdx != i )
-                fOk = false;
+            // 空白セル以外を描画
+            if( pieces.get(i).numIdx != 15 )
+                pieces.get(i).drawPiece(canvas);
 
-            piece.drawPiece(canvas);
+            // 数字と並びがあっているか？
+            if( pieces.get(i).numIdx != i )
+                fNumAllOk = false;
         }
 
         // タイトル
+        paint.setColor(Color.parseColor("#38949d"));
+
         String mess = "15 Game";
-        if( fOk ) mess += " Done!!";
-        paint.setTextSize(48);
+        if( !isInit & fNumAllOk ) mess += " Done!!";
+        paint.setTextSize(titleSize);
         canvas.drawText(
                 mess,
-                gridOrg.x,
-                gridOrg.y + gridWidth + 100,
+                titlePos.x,
+                titlePos.y,
                 paint );
+
+        isInit = false;
     }
 }
