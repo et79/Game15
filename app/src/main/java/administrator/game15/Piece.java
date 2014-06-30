@@ -1,42 +1,33 @@
 package administrator.game15;
 
-/**
- * Created by administrator on 2014/06/26.
- */
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.graphics.RectF;
 
 public class Piece {
 
-    private Paint   paint;
-    private Point   gridOrg;
-    private Point   pieceOrg;
-    private int     oneWidth;
-    private int     gridWidth;
-    public  int     numIdx;
-    public  int     posIdx;
-
-    private int     margin;
+    private Paint   paint;      // ペイント
+    private Point   pieceOrg;   // コマの座標
+    private int     oneWidth;   // 一辺の長さ
+    private GameView gameView;  // 親のゲームビュークラス
+    public  int     numIdx;     // 表示する番号（から-1した数）
+    public  int     posIdx;     // 位置インデックス
+    public double   ratio = 0.9;    // コマ一辺とマス一辺のサイズ比
 
     // コンストラクタ
-    public Piece(Paint argPaint, Point argGridOrg, int argGridWidth, int argPosIdx)
+    public Piece(Paint argPaint, GameView argGameView, int argPosIdx)
     {
         // 初期化
         paint = argPaint;
-        gridOrg = argGridOrg;
-        gridWidth = argGridWidth;
-
+        gameView = argGameView;
         numIdx = argPosIdx;
 
-        int gridOneWidth = gridWidth / 4;
+        // コマの一辺の長さを算出→マス一辺 * 0.9
+        oneWidth = (int)((gameView.gridWidth/4) * ratio);
 
-        margin = (int)( gridOneWidth * 0.05 );
-        oneWidth = gridOneWidth - margin * 2;
-
+        // 位置座標設定
         setPosIdx(argPosIdx);
     }
 
@@ -45,15 +36,20 @@ public class Piece {
     {
         posIdx = idx;
 
-        int xPos = idx % 4;
-        int yPos = idx / 4;
+        // マス一辺の長さ
+        int gridOneWidth = gameView.gridWidth/4;
 
-        int gridOneWidth = gridWidth / 4;
+        // マージン
+        int margin = ( gridOneWidth - oneWidth )/2;
 
-        pieceOrg = new Point(
-                gridOrg.x + gridOneWidth * xPos + margin,
-                gridOrg.y + gridOneWidth * yPos + margin );
+        // コマの描画原点
 
+        // 横軸の位置→グリッドの原点 + 位置インデックス/4の余り + マージン
+        int xPos = gameView.gridOrg.x + gridOneWidth * (idx % 4) + margin;
+        // 横軸の位置→グリッドの原点 + 位置インデックス/4の商 + マージン
+        int yPos = gameView.gridOrg.y + gridOneWidth * (idx / 4) + margin;
+
+        pieceOrg = new Point(xPos, yPos);
     }
 
     // コマを描画
@@ -66,17 +62,22 @@ public class Piece {
             paint.setColor(Color.parseColor("#48b5c0"));
 
         // 描画
-        RectF rect = new RectF(pieceOrg.x, pieceOrg.y, pieceOrg.x + oneWidth, pieceOrg.y + oneWidth );
+        RectF rect = new RectF(
+                pieceOrg.x,
+                pieceOrg.y,
+                pieceOrg.x + oneWidth,
+                pieceOrg.y + oneWidth );
+
         canvas.drawRoundRect(rect, 10, 10, paint);
 
         // 数字を書く
         paint.setColor(Color.parseColor("#d0d0d0"));
-        paint.setTextSize( oneWidth / 3 * 2 );
+        paint.setTextSize( oneWidth/3 * 2 );
 
         // 書く位置
         // 表示を見ながら、微妙な調整を入れています…。
         int numPosX = pieceOrg.x +  ( ( numIdx + 1 <  10 ) ? oneWidth/3 : oneWidth/9 );
-        int numPosY = pieceOrg.y + oneWidth / 4 * 3;
+        int numPosY = pieceOrg.y + oneWidth/4 * 3;
 
         // 数字描画
         canvas.drawText( String.valueOf(numIdx + 1), numPosX, numPosY, paint );

@@ -4,7 +4,6 @@ package administrator.game15;
  * ゲームのメインコンテンツビューです
  */
 
-import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
@@ -25,8 +24,8 @@ public class GameView extends SurfaceView {
     private Paint paint = new Paint();
 
     // 座標系
-    private Point   gridOrg     = new Point(50,180);  // 外枠の原点
-    private int     gridWidth   = 680;                // 外枠の幅
+    public Point    gridOrg     = new Point(50,180);  // 外枠の原点
+    public int      gridWidth   = 680;                // 外枠の幅
     private RectF   gridRect    = new RectF(          // 外枠
             gridOrg.x,
             gridOrg.y,
@@ -54,7 +53,7 @@ public class GameView extends SurfaceView {
         // コマを生成
         for( int i = 0; i < 16; i++ )
         {
-            Piece piece = new Piece( paint, gridOrg, gridWidth, i );
+            Piece piece = new Piece( paint, this, i );
             pieces.add(i, piece);
         }
 
