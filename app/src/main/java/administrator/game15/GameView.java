@@ -6,6 +6,7 @@ package administrator.game15;
 
 import android.graphics.RectF;
 import android.view.MotionEvent;
+import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -16,15 +17,13 @@ import android.graphics.Point;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class GameView extends SurfaceView {
-
-    // メンバー宣言
+public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     // paint
     private Paint paint = new Paint();
 
     // 座標系
-    public Point    gridOrg     = new Point(50,180);  // 外枠の原点
+    public Point    gridOrg     = new Point(50, 180);  // 外枠の原点
     public int      gridWidth   = 680;                // 外枠の幅
     private RectF   gridRect    = new RectF(          // 外枠
             gridOrg.x,
@@ -32,10 +31,7 @@ public class GameView extends SurfaceView {
             gridOrg.x + gridWidth,
             gridOrg.y + gridWidth );
 
-    private int     titleSize   = 100;                 // タイトルのサイズ
-    private Point   titlePos    = new Point(            // タイトルの位置
-            gridOrg.x,
-            gridOrg.y - 50);
+    private float   scale;
 
     private int     emptyPosIdx = -1;               // 空白セルの位置
 
@@ -59,7 +55,26 @@ public class GameView extends SurfaceView {
 
         // 最初の空白は、最後のセル
         emptyPosIdx = 15;
+
+        getHolder().addCallback(this);
     }
+
+    // サーフェースのコールバック
+    public void surfaceCreated(SurfaceHolder holder)
+    {
+        // サイズ調整用の比率（縦横それぞれ）を取得
+        float scaleX = getWidth() / (float)( gridWidth + gridOrg.x * 2 );
+        float scaleY = getHeight() / (float)( gridWidth + gridOrg.y );
+
+        // 比率の小さい方を採用
+        scale = scaleX > scaleY ? scaleY : scaleX;
+    }
+//    public void surfaceDestroyed(SurfaceHolder holder)
+//    {
+//    }
+//    public void surfaceChanged(SurfaceHolder holder, int format, int w, int h)
+//    {
+//    }
 
     // コマをシャッフル
     private void shufflePieces(){
@@ -111,11 +126,15 @@ public class GameView extends SurfaceView {
         int action = event.getAction();
         if(( action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP)
         {
+            // タッチ座標に、プログラム上座標への変換スケールをかける
+            float touchedX = event.getX() / scale;
+            float touchedY = event.getY() / scale;
+
             // 枠内を触った場合
-            if( gridRect.contains(event.getX(), event.getY()) )
+            if( gridRect.contains(touchedX, touchedY) )
             {
                 // 座標から位置Idx取得
-                int clickPosIdx = getPosIdx(new Point((int)event.getX(), (int)event.getY()));
+                int clickPosIdx = getPosIdx(new Point((int)touchedX, (int)touchedY));
 
                 // コマが動かせる場合
                 if( isPieceMoveAble(clickPosIdx) )
@@ -149,6 +168,9 @@ public class GameView extends SurfaceView {
     @Override
     public void onDraw(Canvas canvas){
 
+        // キャンバスサイズを、画面サイズに合わせて調整
+        canvas.scale(scale, scale);
+
         // ペイントの基本設定
         paint.setAntiAlias(true);           // 線が滑らかになる
         paint.setStrokeWidth(0);            // 線幅なし
@@ -174,13 +196,15 @@ public class GameView extends SurfaceView {
         // タイトル
         paint.setColor(Color.parseColor("#38949d"));
 
+        int titleSize = 100;
+
         String mess = "15 Game";
         if( !isInit & fNumAllOk ) mess += " Done!!";
         paint.setTextSize(titleSize);
         canvas.drawText(
                 mess,
-                titlePos.x,
-                titlePos.y,
+                gridOrg.x,
+                gridOrg.y - titleSize / 2,
                 paint );
 
         isInit = false;
