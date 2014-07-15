@@ -77,7 +77,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     // コマをシャッフル
-    private void shufflePieces(){
+    public void shufflePieces(){
         // コマアレーをシャッフル
         Collections.shuffle(pieces);
 
@@ -117,7 +117,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                     checkLine.remove(j);
                     checkLine.add(i, i);
 
-                    moveCount = j - i;
+                    moveCount += j - i;
                 }
             }
         }
@@ -190,13 +190,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
                     invalidate();   // 再描画
                 }
-            }
-            // 枠外をタッチ
-            else
-            {
-                // 今はシャッフル実行
-                shufflePieces();
-                invalidate();   // 再描画
             }
         }
         return true;
