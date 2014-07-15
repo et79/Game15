@@ -69,12 +69,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         // 比率の小さい方を採用
         scale = scaleX > scaleY ? scaleY : scaleX;
     }
-//    public void surfaceDestroyed(SurfaceHolder holder)
-//    {
-//    }
-//    public void surfaceChanged(SurfaceHolder holder, int format, int w, int h)
-//    {
-//    }
+    public void surfaceDestroyed(SurfaceHolder holder)
+    {
+    }
+    public void surfaceChanged(SurfaceHolder holder, int format, int w, int h)
+    {
+    }
 
     // コマをシャッフル
     private void shufflePieces(){
@@ -87,6 +87,43 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             if( pieces.get(i).numIdx == 15 )
                 emptyPosIdx = i;
         }
+
+        // クリア可能な配列か、チェック
+        if( !checkNumLine() )
+            shufflePieces();
+    }
+
+    // 配列がクリア可能か、チェック
+    // http://www.aji.sakura.ne.jp/algorithm/slide_goal.html 参考
+    private boolean checkNumLine()
+    {
+        // チェック用数列の作成
+        int[] idxForCheck = {3, 2, 1, 0, 4, 5, 6, 7, 11, 10, 9, 8, 12, 13, 14, 15};
+        ArrayList<Integer> checkLine = new ArrayList<Integer>(15);
+
+        for( int i = 0; i < 16; i++ ) {
+            if( pieces.get(idxForCheck[i]).numIdx != 15 )
+                checkLine.add(pieces.get(idxForCheck[i]).numIdx);
+        }
+
+        // checkLineを0~14に並べ変えた時の移動数を算出
+        int moveCount = 0;
+
+        for( int i = 0; i < 15; i++ )
+        {
+            for( int j = i; j < 15; j++ )
+            {
+                if( checkLine.get(j) == i ) {
+                    checkLine.remove(j);
+                    checkLine.add(i, i);
+
+                    moveCount = j - i;
+                }
+            }
+        }
+
+        // 移動数が偶数なら、クリア可能
+        return ( moveCount % 2 == 0 ) ? true : false;
     }
 
     // 座標がどの位置に該当するか算出
