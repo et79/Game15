@@ -31,25 +31,51 @@ public class Piece {
         setPosIdx(argPosIdx);
     }
 
-    // 位置Idxから位置座標の算出／設定
-    public void setPosIdx( int idx )
+    // 位置Idxから位置座標の算出
+    public Point getCenterPos()
     {
-        posIdx = idx;
+        return new Point(getOrgPos().x + oneWidth / 2, getOrgPos().y + oneWidth / 2);
+    }
 
+    // 位置Idxから位置座標の算出
+    public Point getOrgPos()
+    {
         // マス一辺の長さ
         int gridOneWidth = gameView.gridWidth/4;
 
         // マージン
         int margin = ( gridOneWidth - oneWidth )/2;
 
-        // コマの描画原点
-
         // 横軸の位置→グリッドの原点 + 位置インデックス/4の余り + マージン
-        int xPos = gameView.gridOrg.x + gridOneWidth * (idx % 4) + margin;
+        int xPos = gameView.gridOrg.x + gridOneWidth * (posIdx % 4) + margin;
         // 横軸の位置→グリッドの原点 + 位置インデックス/4の商 + マージン
-        int yPos = gameView.gridOrg.y + gridOneWidth * (idx / 4) + margin;
+        int yPos = gameView.gridOrg.y + gridOneWidth * (posIdx / 4) + margin;
 
-        pieceOrg = new Point(xPos, yPos);
+        return new Point(xPos, yPos);
+    }
+
+    // 位置Idxから位置座標の算出／設定
+    public void setPosIdx( int idx )
+    {
+        posIdx = idx;
+
+        pieceOrg = getOrgPos();
+    }
+
+    // 移動時用の座標設定
+    public void setMovePos(Point centerPos, boolean isVertical)
+    {
+        // 縦移動
+        if( isVertical )
+            pieceOrg.y = centerPos.y - oneWidth / 2;
+        // 横移動
+        else
+            pieceOrg.x = centerPos.x - oneWidth / 2;
+    }
+
+    public RectF getPieceRect()
+    {
+        return new RectF( pieceOrg.x, pieceOrg.y, pieceOrg.x + oneWidth, pieceOrg.y + oneWidth );
     }
 
     // コマを描画
@@ -62,13 +88,7 @@ public class Piece {
             paint.setColor(Color.parseColor("#48b5c0"));
 
         // 描画
-        RectF rect = new RectF(
-                pieceOrg.x,
-                pieceOrg.y,
-                pieceOrg.x + oneWidth,
-                pieceOrg.y + oneWidth );
-
-        canvas.drawRoundRect(rect, 10, 10, paint);
+        canvas.drawRoundRect(getPieceRect(), 10, 10, paint);
 
         // 数字を書く
         paint.setColor(Color.parseColor("#d0d0d0"));

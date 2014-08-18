@@ -4,6 +4,7 @@ package administrator.game15;
  * ゲームのメインコンテンツビューです
  */
 
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -34,6 +35,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private float   scale;
 
     private int     emptyPosIdx = -1;               // 空白セルの位置
+    private int     movePiecePosIdx = -1;           // 移動中コマの位置
 
     // コマ保持アレー
     private ArrayList<Piece> pieces = new ArrayList<Piece>(16);
@@ -127,7 +129,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     // 座標がどの位置に該当するか算出
-    private int getPosIdx(Point point){
+    private int
+    getPosIdx(Point point){
 
         int oneWidth = gridWidth/4;
 
@@ -140,11 +143,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     // コマを動かせるか、チェック
     // 該当位置の上下左右に、空白セルがあれば、true
-    private boolean isPieceMoveAble(int posIdx) {
+    private boolean isPieceMoveAble(int posIdx, boolean[] isVertical) {
         // 上下をチェック
         if( posIdx - 4 == emptyPosIdx ||
-            posIdx + 4 == emptyPosIdx )
+            posIdx + 4 == emptyPosIdx ) {
+            isVertical[0] = true;
             return true;
+        }
+
+        isVertical[0] = false;
 
         // 右をチェック（コマが右端にいる場合は除外）
         if( posIdx % 4 != 3 && posIdx + 1 == emptyPosIdx  )
@@ -157,12 +164,73 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         return false;
     }
 
+    public Rect getUpdateArea(Piece piece)
+    {
+        int margin = 50;
+        return new Rect(
+                (int)piece.getPieceRect().left,
+                (int)piece.getPieceRect().top,
+                (int)piece.getPieceRect().right,
+                (int)piece.getPieceRect().bottom );
+    }
+
     // 画面タッチイベント
     @Override
     public boolean onTouchEvent(MotionEvent event){
         int action = event.getAction();
+        boolean[] isVertical = new boolean[1];
+        isVertical[0] = false;
+
+        if(( action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_MOVE)
+        {
+            // タッチ座標に、プログラム上座標への変換スケールをかける
+            float touchedX = event.getX() / scale;
+            float touchedY = event.getY() / scale;
+
+            // 枠内を触った場合
+            if( gridRect.contains(touchedX, touchedY) ) {
+
+                // 座標から位置Idx取得
+                if( movePiecePosIdx == -1 )
+                    movePiecePosIdx = getPosIdx(new Point((int) touchedX, (int) touchedY));
+
+                // コマが動かせる場合
+                if (isPieceMoveAble(movePiecePosIdx, isVertical)) {
+
+                    Piece movePiece = pieces.get(movePiecePosIdx);
+                    Piece emptyPiece = pieces.get(emptyPosIdx);
+
+                    // タッチ座標が移動可能な座標かをチェック
+                    if( isVertical[0] )
+                    {
+                        if(( movePiece.getCenterPos().y < touchedY && emptyPiece.getCenterPos().y < touchedY ) ||
+                           ( movePiece.getCenterPos().y > touchedY && emptyPiece.getCenterPos().y > touchedY ))
+                            return true;
+                    }
+                    else
+                    {
+                        if(( movePiece.getCenterPos().x < touchedX && emptyPiece.getCenterPos().x < touchedX ) ||
+                           ( movePiece.getCenterPos().x > touchedX && emptyPiece.getCenterPos().x > touchedX ))
+                            return true;
+                    }
+
+                    // 動かす対象のコマを、空白セルの場所に移動
+                    movePiece.setMovePos(new Point((int) touchedX, (int) touchedY), isVertical[0]);
+
+                    //invalidate(getUpdateArea(movePiece));   // 再描画
+                    invalidate();
+                }
+            }
+        }
         if(( action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP)
         {
+            if( movePiecePosIdx == -1 )
+                return true;
+
+            // コマは移動しているので、移動がキャンセルされる場合を勘案し、
+            // 座標を一旦戻しておく
+            pieces.get(movePiecePosIdx).setPosIdx(movePiecePosIdx);
+
             // タッチ座標に、プログラム上座標への変換スケールをかける
             float touchedX = event.getX() / scale;
             float touchedY = event.getY() / scale;
@@ -171,26 +239,29 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             if( gridRect.contains(touchedX, touchedY) )
             {
                 // 座標から位置Idx取得
-                int clickPosIdx = getPosIdx(new Point((int)touchedX, (int)touchedY));
+                int upPosIdx = getPosIdx(new Point((int)touchedX, (int)touchedY));
 
-                // コマが動かせる場合
-                if( isPieceMoveAble(clickPosIdx) )
+                if( upPosIdx == emptyPosIdx )
                 {
                     // 動かす対象のコマを、空白セルの場所に移動
-                    pieces.get(clickPosIdx).setPosIdx(emptyPosIdx);
+                    pieces.get(movePiecePosIdx).setPosIdx(emptyPosIdx);
 
                     // 空白セルを、動かしたコマの位置に移動
-                    pieces.get(emptyPosIdx).setPosIdx(clickPosIdx);
+                    pieces.get(emptyPosIdx).setPosIdx(movePiecePosIdx);
 
                     // 空白セルの位置Idxを更新
-                    emptyPosIdx = clickPosIdx;
+                    emptyPosIdx = movePiecePosIdx;
 
                     // 位置Idxとアレーの並びを合わせる
                     Collections.sort(pieces, new PieceComparator());
-
-                    invalidate();   // 再描画
                 }
             }
+            // 再描画
+            //invalidate(getUpdateArea( pieces.get(movePiecePosIdx)));
+            //invalidate(getUpdateArea( pieces.get(emptyPosIdx)));
+            invalidate();
+
+            movePiecePosIdx = -1;
         }
         return true;
     }
