@@ -4,6 +4,8 @@ package administrator.game15;
  * ゲームのメインコンテンツビューです
  */
 
+import android.content.res.Resources;
+import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.MotionEvent;
@@ -18,35 +20,79 @@ import android.graphics.Point;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class GameView extends SurfaceView implements SurfaceHolder.Callback {
+public class GameView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
+
+    private MainActivity ma;
+
+    private SurfaceHolder holder;
+    private Thread thread;
 
     // paint
     private Paint paint = new Paint();
 
+    private Resources rsc = getResources();
+
     // 座標系
-    public Point    gridOrg     = new Point(50, 180);  // 外枠の原点
-    public int      gridWidth   = 680;                // 外枠の幅
-    private RectF   gridRect    = new RectF(          // 外枠
-            gridOrg.x,
-            gridOrg.y,
-            gridOrg.x + gridWidth,
-            gridOrg.y + gridWidth );
+    public PointF gridOrgPoint;//     = new Point(50, 50);  // 外枠の原点
+    public float      gridWidth   = 680f;                // 外枠の幅
+    private RectF   gridRect;                           // 外枠
 
     private float   scale;
 
     private int     emptyPosIdx = -1;               // 空白セルの位置
     private int     movePiecePosIdx = -1;           // 移動中コマの位置
 
+    private float touchedX = -1f;
+    private float touchedY = -1f;
+
     // コマ保持アレー
     private ArrayList<Piece> pieces = new ArrayList<Piece>(16);
-
-    // 最初の描画フラグ
-    private boolean isInit      = true;
 
     // コンストラクタ
     public GameView(Context context){
         super(context);
-        setBackgroundColor(Color.parseColor("#d0d0d0"));
+
+        ma = (MainActivity)getContext();
+
+        holder = getHolder();
+        holder.addCallback(this);
+
+        // 最初の空白は、最後のセル
+        emptyPosIdx = 15;
+    }
+
+    // サーフェースのコールバック
+    public void surfaceCreated(SurfaceHolder holder)
+    {
+        thread = new Thread(this);
+        thread.start();
+
+        // 向きをチェック
+        boolean isVertical = getWidth() < getHeight() ? true : false;
+
+        float margin;
+
+        // 縦向きの場合
+        if( isVertical ) {
+            margin = (float)(getWidth() * 0.05);
+            scale = getWidth() / ( gridWidth + margin * 2 );
+
+            gridOrgPoint = new PointF( margin, margin );
+        }
+        // 横向きの場合
+        else {
+            margin = (float)(getHeight() * 0.05);
+            scale = getHeight() / (float)( gridWidth + margin * 2 );
+
+            gridOrgPoint = new PointF( (getWidth() - gridWidth * scale) / 2, margin );
+        }
+
+        // 外枠
+        gridRect = new RectF(
+                gridOrgPoint.x,
+                gridOrgPoint.y,
+                gridOrgPoint.x + gridWidth,
+                gridOrgPoint.y + gridWidth );
 
         // コマを生成
         for( int i = 0; i < 16; i++ )
@@ -54,25 +100,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             Piece piece = new Piece( paint, this, i );
             pieces.add(i, piece);
         }
-
-        // 最初の空白は、最後のセル
-        emptyPosIdx = 15;
-
-        getHolder().addCallback(this);
     }
-
-    // サーフェースのコールバック
-    public void surfaceCreated(SurfaceHolder holder)
-    {
-        // サイズ調整用の比率（縦横それぞれ）を取得
-        float scaleX = getWidth() / (float)( gridWidth + gridOrg.x * 2 );
-        float scaleY = getHeight() / (float)( gridWidth + gridOrg.y );
-
-        // 比率の小さい方を採用
-        scale = scaleX > scaleY ? scaleY : scaleX;
-    }
-    public void surfaceDestroyed(SurfaceHolder holder)
-    {
+    public void surfaceDestroyed(SurfaceHolder holder){
+        thread = null;
     }
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h)
     {
@@ -95,7 +125,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             shufflePieces();
     }
 
-    // 配列がクリア可能か、チェック
+    // 配列がゲームクリア可能か、チェック
     // http://www.aji.sakura.ne.jp/algorithm/slide_goal.html 参考
     private boolean checkNumLine()
     {
@@ -132,13 +162,33 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private int
     getPosIdx(Point point){
 
-        int oneWidth = gridWidth/4;
+        float oneWidth = gridWidth/4;
 
         // 座標を１セルの幅で割った時の商が、x,y 座標のセルの位置に該当
-        int xPos = ( point.x - gridOrg.x ) / oneWidth;
-        int yPos = ( point.y - gridOrg.y ) / oneWidth;
+        int xPos = (int)(( point.x - gridOrgPoint.x ) / oneWidth);
+        int yPos = (int)(( point.y - gridOrgPoint.y ) / oneWidth);
 
         return xPos + yPos * 4;
+    }
+
+    private float
+    getPointsDistance(PointF point1, PointF point2)
+    {
+        return (float)Math.sqrt((int)(point1.x - point2.x)^2 + (int)(point1.y - point2.y)^2);
+    }
+
+    // 座標がどの位置に該当するか算出
+    private int
+    getNearPosIdx(PointF touchedPoint, int posIdx1, int posIdx2){
+
+        Piece piece1 = pieces.get(posIdx1);
+        Piece piece2 = pieces.get(posIdx2);
+
+        float distance1 = getPointsDistance( piece1.getCenterPos(), touchedPoint);
+        float distance2 = getPointsDistance( piece2.getCenterPos(), touchedPoint);
+
+        // バイアスをかけてる。んだけど、、難しいなぁ。
+        return distance1 < distance2 / 3 ? posIdx1 : posIdx2;
     }
 
     // コマを動かせるか、チェック
@@ -166,12 +216,22 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     public Rect getUpdateArea(Piece piece)
     {
-        int margin = 50;
         return new Rect(
                 (int)piece.getPieceRect().left,
                 (int)piece.getPieceRect().top,
                 (int)piece.getPieceRect().right,
                 (int)piece.getPieceRect().bottom );
+    }
+
+    private boolean isNumAllOk(){
+        boolean fNumAllOk = true;
+        for( int i = 0; i < pieces.size(); i++ )
+        {
+            // 数字と並びがあっているか？
+            if( pieces.get(i).numIdx != i )
+                return false;
+        }
+        return true;
     }
 
     // 画面タッチイベント
@@ -184,8 +244,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         if(( action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_MOVE)
         {
             // タッチ座標に、プログラム上座標への変換スケールをかける
-            float touchedX = event.getX() / scale;
-            float touchedY = event.getY() / scale;
+            touchedX = event.getX() / scale;
+            touchedY = event.getY() / scale;
 
             // 枠内を触った場合
             if( gridRect.contains(touchedX, touchedY) ) {
@@ -217,8 +277,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                     // 動かす対象のコマを、空白セルの場所に移動
                     movePiece.setMovePos(new Point((int) touchedX, (int) touchedY), isVertical[0]);
 
-                    //invalidate(getUpdateArea(movePiece));   // 再描画
-                    invalidate();
+                    invalidate(getUpdateArea(movePiece));   // 再描画
+                }
+                else {
+                    movePiecePosIdx = -1;
                 }
             }
         }
@@ -227,87 +289,72 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             if( movePiecePosIdx == -1 )
                 return true;
 
-            // コマは移動しているので、移動がキャンセルされる場合を勘案し、
-            // 座標を一旦戻しておく
-            pieces.get(movePiecePosIdx).setPosIdx(movePiecePosIdx);
+            boolean isMove = false;
 
-            // タッチ座標に、プログラム上座標への変換スケールをかける
-            float touchedX = event.getX() / scale;
-            float touchedY = event.getY() / scale;
-
-            // 枠内を触った場合
-            if( gridRect.contains(touchedX, touchedY) )
+            int upPosIdx = getNearPosIdx(new PointF(touchedX, touchedY), movePiecePosIdx, emptyPosIdx);
+            if( upPosIdx == emptyPosIdx )
             {
-                // 座標から位置Idx取得
-                int upPosIdx = getPosIdx(new Point((int)touchedX, (int)touchedY));
+                // 動かす対象のコマを、空白セルの場所に移動
+                pieces.get(movePiecePosIdx).setPosIdx(emptyPosIdx);
 
-                if( upPosIdx == emptyPosIdx )
-                {
-                    // 動かす対象のコマを、空白セルの場所に移動
-                    pieces.get(movePiecePosIdx).setPosIdx(emptyPosIdx);
+                // 空白セルを、動かしたコマの位置に移動
+                pieces.get(emptyPosIdx).setPosIdx(movePiecePosIdx);
 
-                    // 空白セルを、動かしたコマの位置に移動
-                    pieces.get(emptyPosIdx).setPosIdx(movePiecePosIdx);
+                // 空白セルの位置Idxを更新
+                emptyPosIdx = movePiecePosIdx;
 
-                    // 空白セルの位置Idxを更新
-                    emptyPosIdx = movePiecePosIdx;
+                // 位置Idxとアレーの並びを合わせる
+                Collections.sort(pieces, new PieceComparator());
 
-                    // 位置Idxとアレーの並びを合わせる
-                    Collections.sort(pieces, new PieceComparator());
-                }
+                isMove = true;
             }
+
+            if( !isMove )
+            {
+                // コマを戻す
+                pieces.get(movePiecePosIdx).setPosIdx(movePiecePosIdx);
+            }
+
             // 再描画
-            //invalidate(getUpdateArea( pieces.get(movePiecePosIdx)));
-            //invalidate(getUpdateArea( pieces.get(emptyPosIdx)));
-            invalidate();
+            invalidate(getUpdateArea( pieces.get(movePiecePosIdx)));
+            invalidate(getUpdateArea( pieces.get(emptyPosIdx)));
+
+            // ゲームクリアしているか？
+            if( isMove && isNumAllOk() ){
+                ma.clearedGame();
+            }
 
             movePiecePosIdx = -1;
         }
         return true;
     }
 
-    @Override
-    public void onDraw(Canvas canvas){
-
-        // キャンバスサイズを、画面サイズに合わせて調整
-        canvas.scale(scale, scale);
+    public void run() {
 
         // ペイントの基本設定
         paint.setAntiAlias(true);           // 線が滑らかになる
         paint.setStrokeWidth(0);            // 線幅なし
         paint.setStyle(Paint.Style.FILL);   // 塗りつぶしあり
 
-        // 外枠
-        paint.setColor(Color.parseColor("#b7b7b7"));
-        canvas.drawRoundRect( gridRect, 10, 10, paint);
+        while(thread != null){
+            Canvas canvas = holder.lockCanvas();
+            if(canvas == null)
+                break;
 
-        // コマ描画
-        boolean fNumAllOk = true; // 数字の並び順があっているか？
-        for( int i = 0; i < pieces.size(); i++ )
-        {
-            // 空白セル以外を描画
-            if( pieces.get(i).numIdx != 15 )
-                pieces.get(i).drawPiece(canvas);
+            canvas.drawColor(Color.WHITE);
 
-            // 数字と並びがあっているか？
-            if( pieces.get(i).numIdx != i )
-                fNumAllOk = false;
+            // キャンバスサイズを、画面サイズに合わせて調整
+            canvas.scale(scale, scale);
+
+            // コマ描画
+            for( int i = 0; i < pieces.size(); i++ )
+            {
+                // 空白セル以外を描画
+                if( pieces.get(i).numIdx != 15 )
+                    pieces.get(i).drawPiece(canvas);
+            }
+
+            holder.unlockCanvasAndPost(canvas);
         }
-
-        // タイトル
-        paint.setColor(Color.parseColor("#38949d"));
-
-        int titleSize = 100;
-
-        String mess = "15 Game";
-        if( !isInit & fNumAllOk ) mess += " Done!!";
-        paint.setTextSize(titleSize);
-        canvas.drawText(
-                mess,
-                gridOrg.x,
-                gridOrg.y - titleSize / 2,
-                paint );
-
-        isInit = false;
     }
 }
