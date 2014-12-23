@@ -1,5 +1,6 @@
 package administrator.game15;
 
+import android.content.res.Resources;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -85,15 +86,15 @@ public class Piece {
     {
         // 色設定／正解の位置にいる場合は、色を替える
         if( posIdx == numIdx )
-            paint.setColor(Color.parseColor("#38949d"));
+            paint.setColor(gameView.rsc.getColor(R.color.piece_color2));
         else
-            paint.setColor(Color.parseColor("#48b5c0"));
+            paint.setColor(gameView.rsc.getColor(R.color.piece_color1));
 
         // 描画
         canvas.drawRoundRect(getPieceRect(), 5, 5, paint);
 
         // 数字を書く
-        paint.setColor(Color.parseColor("#d0d0d0"));
+        paint.setColor(gameView.rsc.getColor(R.color.num_color));
         paint.setTextSize( oneWidth/3 * 2 );
 
         // 書く位置

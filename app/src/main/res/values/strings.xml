@@ -8,4 +8,7 @@
     <string name="title_label">15 Game</string>
     <string name="title_activity_score">ScoreActivity</string>
 
+    <string name="clear_mess_1">Well Done!!\nTime : %s</string>
+
+
 </resources>

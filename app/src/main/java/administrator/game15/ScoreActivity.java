@@ -17,6 +17,13 @@ public class ScoreActivity extends ActionBarActivity {
         TextView tv = new TextView(this);
         tv.setText("Time Score");
         setContentView(tv);
+
+        // 時間の取得
+        String timeStr;
+        Bundle extras = getIntent().getExtras();
+        if(extras != null)
+            timeStr = extras.getString("timeStr");
+
     }
 
 

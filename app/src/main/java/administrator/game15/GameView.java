@@ -30,7 +30,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // paint
     private Paint paint = new Paint();
 
-    private Resources rsc = getResources();
+    public Resources rsc = getResources();
 
     // 座標系
     public PointF gridOrgPoint;//     = new Point(50, 50);  // 外枠の原点
@@ -95,10 +95,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 gridOrgPoint.y + gridWidth );
 
         // コマを生成
-        for( int i = 0; i < 16; i++ )
-        {
-            Piece piece = new Piece( paint, this, i );
-            pieces.add(i, piece);
+        if( pieces.size() == 0 ){
+            for( int i = 0; i < 16; i++ )
+            {
+                Piece piece = new Piece( paint, this, i );
+                pieces.add(i, piece);
+            }
         }
     }
     public void surfaceDestroyed(SurfaceHolder holder){
@@ -237,6 +239,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // 画面タッチイベント
     @Override
     public boolean onTouchEvent(MotionEvent event){
+
+        // ゲーム実行前は何もしない
+        if( !ma.playNow )
+            return true;
+
         int action = event.getAction();
         boolean[] isVertical = new boolean[1];
         isVertical[0] = false;

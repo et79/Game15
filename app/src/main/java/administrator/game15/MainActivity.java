@@ -1,5 +1,6 @@
 package administrator.game15;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -11,11 +12,18 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.Window;
+import android.widget.Button;
 import android.widget.Chronometer;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements View.OnClickListener
+{
 
     // ゲームビューのインスタンス
     private GameView gameView;
@@ -29,38 +37,52 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // ツールバーを非表示
-//        requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        // リソース
         Resources rsc = getResources();
 
         // レイアウトの作成
-        LinearLayout layoutAll = new LinearLayout(this);
+        RelativeLayout layoutAll = new RelativeLayout(this);
         layoutAll.setBackgroundColor(Color.WHITE);
-        layoutAll.setOrientation(LinearLayout.VERTICAL);
-
-        setContentView(layoutAll);
 
         // ヘッダー部のレイアウト作成
         LinearLayout layoutHeader = new LinearLayout(this);
         layoutHeader.setBackgroundColor(Color.WHITE);
-        layoutHeader.setOrientation(LinearLayout.HORIZONTAL);
 
         int wc = LinearLayout.LayoutParams.WRAP_CONTENT;
 
+        int id = 0;
+
         // タイム
         timer = new Chronometer(this);
+        timer.setId(++id);
         timer.setTextColor(rsc.getColor(R.color.str_color));
         timer.setTextSize(30);    // なんとかしなきゃ…。
         timer.setTag("time1");
-        LinearLayout.LayoutParams param1 = new LinearLayout.LayoutParams(wc,wc);
-        param1.gravity = Gravity.CENTER;
+        RelativeLayout.LayoutParams param1 = new RelativeLayout.LayoutParams(wc,wc);
+        param1.addRule(RelativeLayout.CENTER_HORIZONTAL);
+        param1.addRule(RelativeLayout.ALIGN_PARENT_TOP);
         layoutAll.addView(timer, param1);
 
         // ゲームビューを設定
         gameView = new GameView(this);
-        layoutAll.addView(gameView, new LinearLayout.LayoutParams(wc, wc));
+        gameView.setId(++id);
+        RelativeLayout.LayoutParams param2 = new RelativeLayout.LayoutParams(wc,wc);
+        param2.addRule(RelativeLayout.BELOW, id - 1);
+        layoutAll.addView(gameView, param2);
+
+        // 開始ボタン
+        ImageButton btn = new ImageButton(this);
+        btn.setId(++id);
+        btn.setTag("btn1");
+        btn.setScaleType(ImageView.ScaleType.FIT_XY);
+        btn.setImageResource(R.drawable.ic_play);
+        btn.setBackgroundColor(Color.TRANSPARENT);
+        btn.setOnClickListener(this);
+        RelativeLayout.LayoutParams param3 = new RelativeLayout.LayoutParams(320,300);
+        param3.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+        param3.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        layoutAll.addView(btn, param3);
+
+        setContentView(layoutAll);
     }
 
     @Override
@@ -93,14 +115,10 @@ public class MainActivity extends ActionBarActivity {
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        // 再実行ボタン押下
-        if (id == R.id.action_refresh) {
+    public void onClick(View view){
+        // 実行ボタン押下
+        String tag = (String)view.getTag();
+        if (tag == "btn1") {
 
             // コマの並びをシャッフルし、再描画
             gameView.shufflePieces();
@@ -111,12 +129,8 @@ public class MainActivity extends ActionBarActivity {
             timer.start();
 
             playNow = true;
-
-            return true;
         }
-        return super.onOptionsItemSelected(item);
     }
-
 
     // ゲームクリアメッセージの出力
     public void clearedGame()
@@ -124,8 +138,18 @@ public class MainActivity extends ActionBarActivity {
         timer.stop();
         playNow = false;
 
-        // スコア表示
-        Intent it = new Intent(this, ScoreActivity.class);
-        startActivity(it);
+        Resources rsc = getResources();
+
+        // ダイアログ表示
+        AlertDialog.Builder ad = new AlertDialog.Builder(this);
+//        ad.setTitle(rsc.getString(R.string.clear_mess_1));
+        ad.setMessage(String.format(rsc.getString(R.string.clear_mess_1), timer.getText()));
+        ad.setPositiveButton("Close", null);
+        ad.show();
+
+//        // スコア表示
+//        Intent it = new Intent(this, ScoreActivity.class);
+//        it.putExtra("timeStr", "03:01:2");
+//        startActivity(it);
     }
 }

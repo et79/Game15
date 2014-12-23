@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="str_color">#38949d</color>
-    <color name="num_color">#d0d0d0</color>
-    <color name="piece_color1">#38949d</color>
-    <color name="piece_color2">#48b5c0</color>
-    <color name="back_color">#b7b7b7</color>
+    <color name="str_color">#3498db</color>
+    <color name="num_color">#ecf0f1</color>
+    <color name="piece_color1">#3498db</color>
+    <color name="piece_color2">#2980b9</color>
+    <color name="back_color">#ecf0f1</color>
 </resources>
